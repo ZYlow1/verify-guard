@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Verify guard",
+    "description": "Notices when a session works inside a project and reminds the agent to run the project's verification baseline before claiming completion."
+  }
+}

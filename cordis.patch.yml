@@ -1,0 +1,6 @@
+# Bundle patch: one host plugin row. The plugin only reads the working
+# directory and injects a user-role notice; it starts no processes.
+- insert:
+    - id: verify-guard
+      name: dsh-verify-guard
+      config: {}
