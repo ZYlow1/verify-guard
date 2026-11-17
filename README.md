@@ -63,3 +63,13 @@ The same fields can be set by hand in the patch:
 declares the row `Config`; `client.js` is the browser half that registers the
 configuration page. `node test/detect.test.mjs` covers detection, text, configuration
 reading, and the notice decisions.
+
+The row `Config` needs `@deepseek-ai/schemastery`. A bundle linked into a profile resolves
+bare imports from its own directory, not from the dsh installation, so run `pnpm install`
+in this directory before installing or reloading the bundle. `.npmrc` pins
+`node-linker=hoisted` because the linked directory is resolved by its real path, and
+pnpm's default symlinked layout leaves `@deepseek-ai/cosmokit` where that resolution cannot
+reach it.
+
+The browser half needs a page reload after it changes; the host half reloads on the next
+profile recomposition, such as switching the row off and on in **Plugins**.
