@@ -1,13 +1,18 @@
 /**
- * Unit tests for verify-guard detection. Plain node:assert, no test runner.
+ * Unit tests for verify-guard. Plain node:assert, no test runner.
  * Run: node test/detect.test.mjs
+ *
+ * The core module has no plugin-framework import, so this file never needs the
+ * harness: `index.js` is the only file that imports schemastery.
  */
 
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { detectProject, guardText, MAX_ANCESTOR_HOPS } from '../index.js'
+import {
+  MAX_ANCESTOR_HOPS, detectProject, guardText, normalizeConfig, shouldNotify, verdictKey,
+} from '../detect.js'
 
 const root = join(tmpdir(), `verify-guard-test-${process.pid}`)
 let passed = 0
@@ -30,6 +35,11 @@ function constProbe(hasMarker) {
     readdir: () => [],
   }
 }
+
+const BASELINE = { path: 'verify.ps1', command: 'powershell -File .\\verify.ps1' }
+const WITH_BASELINE = { isProject: true, root: 'C:\\work\\app', markers: ['package.json'], baseline: BASELINE }
+const WITHOUT_BASELINE = { isProject: true, root: 'C:\\work\\app', markers: ['package.json'], baseline: null }
+const NOT_PROJECT = { isProject: false, root: null, markers: [], baseline: null }
 
 try {
   rmSync(root, { recursive: true, force: true })
@@ -99,6 +109,51 @@ try {
     const probe = constProbe((path) => path.toLowerCase().startsWith(home.toLowerCase()))
     assert.equal(detectProject(home, { homeDir: home, probe }).isProject, false)
     assert.equal(detectProject(join(home, 'Documents'), { homeDir: home, probe }).isProject, false)
+  })
+
+  // 7. row configuration is read defensively
+  check('empty config -> enabled, once per project', () => {
+    assert.deepEqual(normalizeConfig(undefined), { enabled: true, notice: 'project' })
+    assert.deepEqual(normalizeConfig({}), { enabled: true, notice: 'project' })
+  })
+  check('explicit false / unknown values -> defaults', () => {
+    assert.deepEqual(normalizeConfig({ enabled: false }), { enabled: false, notice: 'project' })
+    assert.deepEqual(normalizeConfig({ notice: 'whenever' }), { enabled: true, notice: 'project' })
+    assert.deepEqual(normalizeConfig('garbage'), { enabled: true, notice: 'project' })
+  })
+  check('accepted notice values survive', () => {
+    for (const notice of ['project', 'step', 'baseline-only']) {
+      assert.equal(normalizeConfig({ notice }).notice, notice)
+    }
+  })
+
+  // 8. notice decisions
+  check('non-project -> never notifies', () => {
+    assert.deepEqual(shouldNotify({}, NOT_PROJECT, undefined), { notify: false, key: '' })
+  })
+  check('project mode -> once per verdict, again when the baseline changes', () => {
+    const first = shouldNotify({}, WITH_BASELINE, undefined)
+    assert.equal(first.notify, true)
+    assert.equal(first.key, verdictKey(WITH_BASELINE))
+    assert.equal(shouldNotify({}, WITH_BASELINE, first.key).notify, false)
+    assert.equal(shouldNotify({}, WITHOUT_BASELINE, first.key).notify, true)
+  })
+  check('step mode -> every step', () => {
+    const key = verdictKey(WITH_BASELINE)
+    assert.equal(shouldNotify({ notice: 'step' }, WITH_BASELINE, key).notify, true)
+    assert.equal(shouldNotify({ notice: 'step' }, WITHOUT_BASELINE, undefined).notify, true)
+  })
+  check('baseline-only -> silent when a baseline exists', () => {
+    const config = { notice: 'baseline-only' }
+    assert.equal(shouldNotify(config, WITH_BASELINE, undefined).notify, false)
+    const first = shouldNotify(config, WITHOUT_BASELINE, undefined)
+    assert.equal(first.notify, true)
+    assert.equal(shouldNotify(config, WITHOUT_BASELINE, first.key).notify, false)
+  })
+  check('enabled false -> silent in every mode', () => {
+    for (const notice of ['project', 'step', 'baseline-only']) {
+      assert.equal(shouldNotify({ enabled: false, notice }, WITH_BASELINE, undefined).notify, false)
+    }
   })
 } finally {
   rmSync(root, { recursive: true, force: true })

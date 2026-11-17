@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "Verify guard",
-    "description": "Notices when a session works inside a project and reminds the agent to run the project's verification baseline before claiming completion."
+    "description": "Notices when a session works inside a project and reminds the agent to run the project's verification baseline before claiming completion. Configure it in Plugins → verify-guard → Configure: turn the reminder off without unloading the plugin, or switch between once per project, every step, and only when a baseline is missing.",
+    "detail": "docs/DETAIL.md"
   }
 }

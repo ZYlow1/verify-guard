@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "验证守卫",
-    "description": "识别会话所在的项目目录，并在声称完成前提醒 Agent 先运行项目的验证基线。"
+    "description": "识别会话所在的项目目录，并在声称完成前提醒 Agent 先运行项目的验证基线。配置入口：Plugins → verify-guard → Configure，可在不卸载插件的前提下关掉提醒，或在「每个项目一次 / 每一步 / 仅在缺基线时」之间切换。",
+    "detail": "docs/DETAIL.zh.md"
   }
 }

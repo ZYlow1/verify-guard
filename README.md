@@ -1,8 +1,8 @@
 # verify-guard
 
-A host-only DeepSeek Harness plugin. It looks at a session's working directory once per
-project and injects one user-role notice so the agent cannot silently skip the project's
-verification gate.
+A DeepSeek Harness plugin. It looks at a session's working directory once per
+project and injects one user-role notice so the agent cannot silently skip the
+project's verification gate.
 
 ## What it does
 
@@ -12,13 +12,33 @@ verification gate.
    `*.sln`.
 2. Not a project (for example a scratch or launcher directory) → nothing is injected.
 3. A project with a baseline (`.dsh/verify/verify.ps1`, `.dsh/verify/verify.sh`,
-   `verify.ps1`, or `verify.sh`) → one notice naming the exact command to run and the rule
+   `verify.ps1`, or `verify.sh`) → the notice names the exact command to run and the rule
    that a run is required before claiming completion.
-4. A project without a baseline → one notice saying to scan read-only and propose a
-   baseline before touching code.
+4. A project without a baseline → the notice says to scan read-only and propose a baseline
+   before touching code.
 
-The notice repeats only when the verdict changes (different project root or the baseline
-appears/disappears), so a session does not accumulate duplicates.
+## Configuration
+
+Open **Plugins** in the sidebar, find the **dsh-verify-guard** bundle, expand it, and press
+**Configure** on the `verify-guard` row. The page writes the row's `config` into the
+profile's `cordis.patch.yml`; the row restarts when the value changes.
+
+| Setting | Values | Default | Effect |
+|---|---|---|---|
+| Inject the reminder | on / off | on | Off stops all notices and registers no per-step listener. The plugin stays loaded. |
+| When to remind | Once per project | ✔ | One notice per project root, repeated only when the root or its baseline changes. |
+| | Every step | | A notice before every model step. Strongest and noisiest. |
+| | Only without a baseline | | Silent for projects that already have `verify.ps1` or `verify.sh`. |
+
+The same fields can be set by hand in the patch:
+
+```yaml
+- id: verify-guard
+  name: dsh-verify-guard
+  config:
+    enabled: true
+    notice: project
+```
 
 ## What it deliberately does not do
 
@@ -34,3 +54,12 @@ appears/disappears), so a session does not accumulate duplicates.
 - The walk stops at the filesystem root; a marker in a parent of the intended project root
   wins, exactly like the harness's own instruction discovery.
 - Verdicts are cached per session object; a resumed session re-detects on its next step.
+- `Every step` multiplies the notice by the number of steps, and every notice is a user
+  message in the transcript. It is there for sessions that must not drift, not for comfort.
+
+## Development
+
+`detect.js` holds the framework-free core; `index.js` wires it into the harness and
+declares the row `Config`; `client.js` is the browser half that registers the
+configuration page. `node test/detect.test.mjs` covers detection, text, configuration
+reading, and the notice decisions.
